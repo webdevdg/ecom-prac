@@ -1,16 +1,52 @@
 'use client'
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, User, Search, ChevronDown } from "lucide-react"
+import { ShoppingCart, User, Search, ChevronDown, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { SignInButton, useUser, useClerk } from "@clerk/nextjs"
+import { useToast } from "@/hooks/use-toast"
+
 
 export function EcommerceLandingPageComponent() {
+  const { signOut } = useClerk()
+  const { isSignedIn, user, isLoaded } = useUser()
+  const { toast } = useToast()
+  const [hasShownLoginToast, setHasShownLoginToast] = useState(false)
+
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && !hasShownLoginToast) {
+      const hasLoggedInThisSession = sessionStorage.getItem('hasLoggedIn')
+      if (hasLoggedInThisSession === 'true') {
+        toast({
+          title: "Successfully logged in!",
+          description: `Welcome back, ${user?.firstName ?? 'user'}!`,
+        })
+        setHasShownLoginToast(true)
+        sessionStorage.removeItem('hasLoggedIn')
+      }
+    }
+  }, [isSignedIn, isLoaded, user, toast, hasShownLoginToast])
+
+
+  const handleLogout = () => {
+    signOut().then(() => {
+      toast({
+        title: "Successfully logged out!",
+        description: "We hope to see you again soon.",
+      })
+      setHasShownLoginToast(false)
+    })
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -38,9 +74,59 @@ export function EcommerceLandingPageComponent() {
             <Button variant="ghost" size="icon">
               <Search className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <div className="px-4 py-3 border-b">
+                  {isSignedIn ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-900">Hello {user.firstName}</p>
+                      <p className="text-sm text-gray-500">{user.primaryEmailAddress?.emailAddress}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-gray-900">Welcome</p>
+                      <p className="text-sm text-gray-500">To access account and manage orders</p>
+                      <SignInButton mode="modal">
+                        <Button
+                          className="w-full mt-2"
+                          variant="default"
+                          onClick={() => sessionStorage.setItem('hasLoggedIn', 'true')}
+                        >
+                          Login / Signup
+                        </Button>
+                      </SignInButton>
+                    </>
+                  )}
+                </div>
+                <DropdownMenuItem>
+                  <Link href="/orders" className="w-full">Orders</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/wishlist" className="w-full">Wishlist</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/gift-cards" className="w-full">Gift Cards</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/contact" className="w-full">Contact Us</Link>
+                </DropdownMenuItem>
+                {isSignedIn && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="ghost" size="icon">
               <ShoppingCart className="h-5 w-5" />
             </Button>
